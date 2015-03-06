@@ -65,17 +65,20 @@ def to_inventory_object(status):
 	"""Restructure juju status into an Ansible dynamic inventory.
 	Groups are currently created for each service and series."""
 	result = {}
+        dnsname = {}
 
 	# Create the 'all' group, and a group for each distribution series
 	for machine_num, machine in status.get('machines', {}).iteritems():
 		if not machine.get('dns-name'):
 			continue
+                dnsname[machine_num] = machine['dns-name']
 		result.setdefault('all', []).append(machine['dns-name'])
 		if machine.get('series'):
 			result.setdefault(machine['series'], []).append(machine['dns-name'])
                 for container_num, container in machine.get('containers', {}).iteritems():
                         if not container.get('dns-name'):
                                 continue
+                        dnsname[container_num] = container['dns-name']
                         result.setdefault('all', []).append(container['dns-name'])
                         if container.get('series'):
                                 result.setdefault(container['series'], []).append(container['dns-name'])
@@ -83,9 +86,8 @@ def to_inventory_object(status):
 	# Create groups for each service
 	for service_name, service in status.get('services', {}).iteritems():
 		for unit_name, unit in service.get('units', {}).iteritems():
-			if status.get('machines', {}).get(unit.get('machine'), {}).get('dns-name'):
-				result.setdefault(service_name, []).append(
-					status['machines'][unit['machine']]['dns-name'])
+			if unit.get('machine') in dnsname:
+				result.setdefault(service_name, []).append(dnsname[unit['machine']])
 
 	# Unique all the hosts, in case there are duplicates. Could happen,
 	# if multiple units are targeted to a machine.
